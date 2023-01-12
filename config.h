@@ -6,7 +6,7 @@
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
 static char *font = "mono:pixelsize=16:antialias=true:autohint=true";
-static char *font2[] = {"NotoColorEmoji:size=14:antialias=true:autohint=true", "icons-in-terminal:pixelsize=14:antialias=true:autohint=true" };
+static char *font2[] = {"NotoColorEmoji:size=14:antialias=true:autohint=true", "icons-in-terminal:pixelsize=14:antialias=true:autohint=true"};
 static int borderpx = 2;
 
 /*
@@ -253,6 +253,7 @@ static Shortcut shortcuts[] = {
     { XK_ANY_MOD,           XK_Print,    printsel,      {.i =  0} },
     { MODKEY,               XK_c,        clipcopy,      {.i =  0} },
     { MODKEY,               XK_v,        clippaste,     {.i =  0} },
+    { ControlMask | ShiftMask, XK_V,     clippaste,     {.i =  0} },
     { ShiftMask,            XK_Insert,   selpaste,      {.i =  0} },
     { TERMMOD,              XK_Num_Lock, numlock,       {.i =  0} },
     { MODKEY,               XK_k,        zoom,          {.f = +1} },
