@@ -104,7 +104,7 @@ typedef unsigned long int CARD32;
 typedef struct {
 	int tw, th; /* tty width and height */
 	int w, h; /* window width and height */
-        int hborderpx, vborderpx;
+	int hborderpx, vborderpx;
 	int ch; /* char height */
 	int cw; /* char width  */
 	int cyo; /* char y offset */
@@ -118,7 +118,7 @@ typedef struct {
 	Window win;
 	Drawable buf;
 	GlyphFontSpec *specbuf; /* font spec buffer used for rendering */
-     	Atom xembed, wmdeletewin, netwmname, netwmicon, netwmiconname, netwmpid;
+		Atom xembed, wmdeletewin, netwmname, netwmicon, netwmiconname, netwmpid;
 	XIM xim;
 	XIC xic;
 	Draw draw;
@@ -365,7 +365,7 @@ zoomreset(const Arg *arg)
 int
 evcol(XEvent *e)
 {
-	int x = e->xbutton.x - borderpx;
+	int x = e->xbutton.x - win.hborderpx;
 	LIMIT(x, 0, win.tw - 1);
 	return x / win.cw;
 }
@@ -373,7 +373,7 @@ evcol(XEvent *e)
 int
 evrow(XEvent *e)
 {
-	int y = e->xbutton.y - borderpx;
+	int y = e->xbutton.y - win.vborderpx;
 	LIMIT(y, 0, win.th - 1);
 	return y / win.ch;
 }
@@ -742,6 +742,9 @@ cresize(int width, int height)
 	col = MAX(1, col);
 	row = MAX(1, row);
 
+	win.hborderpx = (win.w - col * win.cw) / 2;
+	win.vborderpx = (win.h - row * win.ch) / 2;
+
 	tresize(col, row);
 	xresize(col, row);
 	ttyresize(win.tw, win.th);
@@ -881,8 +884,8 @@ xhints(void)
 	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
 	sizeh->height = win.h;
 	sizeh->width = win.w;
-        sizeh->height_inc = 1;
-        sizeh->width_inc = 1;
+	sizeh->height_inc = 1;
+	sizeh->width_inc = 1;
 	sizeh->base_height = 2 * borderpx;
 	sizeh->base_width = 2 * borderpx;
 	sizeh->min_height = win.ch + 2 * borderpx;
@@ -1259,8 +1262,8 @@ xinit(int cols, int rows)
 	xloadcols();
 
 	/* adjust fixed window geometry */
-	win.w = 2 * win.hborderpx + cols * win.cw;
-	win.h = 2 * win.vborderpx + rows * win.ch;
+	win.w = 2 * win.hborderpx + 2 * borderpx + cols * win.cw;
+	win.h = 2 * win.vborderpx + 2 * borderpx + rows * win.ch;
 	if (xw.gm & XNegative)
 		xw.l += DisplayWidth(xw.dpy, xw.scr) - win.w - 2;
 	if (xw.gm & YNegative)
@@ -1323,27 +1326,28 @@ xinit(int cols, int rows)
 	/* use a png-image to set _NET_WM_ICON */
 	FILE* file = fopen(ICON, "r");
 	if (file) {
-		/* inititialize variables */
+		/* load image in rgba-format */
 		const gdImagePtr icon_rgba = gdImageCreateFromPng(file);
 		fclose(file);
-		const int width = gdImageSX(icon_rgba);
+		/* declare icon-variable which will store the image in argb-format */
+		const int width  = gdImageSX(icon_rgba);
 		const int height = gdImageSY(icon_rgba);
 		const int icon_n = width * height + 2;
-		CARD32 *icon_argb = g_new0(CARD32, icon_n);
+		long icon_argb[icon_n];
 		/* set width and height of the icon */
 		int i = 0;
 		icon_argb[i++] = width;
 		icon_argb[i++] = height;
-		/* RGBA -> ARGB */
+		/* rgba -> argb */
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
 				const int pixel_rgba = gdImageGetPixel(icon_rgba, x, y);
-				guint8* pixel_argb = (guint8*) &icon_argb[i++];
+				unsigned char *pixel_argb = (unsigned char *) &icon_argb[i++];
 				pixel_argb[0] = gdImageBlue(icon_rgba, pixel_rgba);
 				pixel_argb[1] = gdImageGreen(icon_rgba, pixel_rgba);
 				pixel_argb[2] = gdImageRed(icon_rgba, pixel_rgba);
 				/* scale alpha from 0-127 to 0-255 */
-				const int alpha = 127 - gdImageAlpha(icon_rgba, pixel_rgba);
+				const unsigned char alpha = 127 - gdImageAlpha(icon_rgba, pixel_rgba);
 				pixel_argb[3] = alpha == 127 ? 255 : alpha * 2;
 			}
 		}
@@ -1351,7 +1355,7 @@ xinit(int cols, int rows)
 		/* set _NET_WM_ICON */
 		xw.netwmicon = XInternAtom(xw.dpy, "_NET_WM_ICON", False);
 		XChangeProperty(xw.dpy, xw.win, xw.netwmicon, XA_CARDINAL, 32,
-				PropModeReplace, (uchar *)icon_argb, icon_n);
+				PropModeReplace, (uchar *) icon_argb, icon_n);
 	}
 
 	xw.netwmpid = XInternAtom(xw.dpy, "_NET_WM_PID", False);
@@ -1378,7 +1382,7 @@ xinit(int cols, int rows)
 int
 xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x, int y)
 {
-	float winx = borderpx + x * win.cw, winy = borderpx + y * win.ch, xp, yp;
+	float winx = win.hborderpx + x * win.cw, winy = win.vborderpx + y * win.ch, xp, yp;
 	ushort mode, prevmode = USHRT_MAX;
 	Font *font = &dc.font;
 	int frcflags = FRC_NORMAL;
@@ -1564,7 +1568,7 @@ void
 xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, int y, int dmode)
 {
 	int charlen = len * ((base.mode & ATTR_WIDE) ? 2 : 1);
-	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch,
+	int winx = win.hborderpx + x * win.cw, winy = win.vborderpx + y * win.ch,
 	    width = charlen * win.cw;
 	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
 	XRenderColor colfg, colbg;
@@ -1650,17 +1654,17 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	if (dmode & DRAW_BG) {
 		/* Intelligent cleaning up of the borders. */
 		if (x == 0) {
-                        xclear(0, (y == 0)? 0 : winy, borderpx,
-					winy + win.ch +
-                                        ((winy + win.ch >= borderpx + win.th)? win.h : 0));
+			xclear(0, (y == 0)? 0 : winy, win.vborderpx,
+				winy + win.ch +
+				((winy + win.ch >= win.vborderpx + win.th)? win.h : 0));
 		}
-	        if (winx + width >= borderpx + win.tw) {
+		if (winx + width >= win.hborderpx + win.tw) {
 			xclear(winx + width, (y == 0)? 0 : winy, win.w,
-                                ((winy + win.ch >= borderpx + win.th)? win.h : (winy + win.ch)));
+				((winy + win.ch >= win.vborderpx + win.th)? win.h : (winy + win.ch)));
 		}
 		if (y == 0)
-                  	xclear(winx, 0, winx + width, borderpx);
-          	if (winy + win.ch >= borderpx + win.th)
+			xclear(winx, 0, winx + width, win.vborderpx);
+		if (winy + win.ch >= win.vborderpx + win.th)
 			xclear(winx, winy + win.ch, winx + width, win.h);
 
 		/* Fill the background */
@@ -2105,8 +2109,8 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int le
 			/* FALLTHROUGH */
 		case 4: /* Steady underline */
 			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + (cy + 1) * win.ch - \
+					win.hborderpx + cx * win.cw,
+					win.vborderpx + (cy + 1) * win.ch - \
 						cursorthickness,
 					win.cw, cursorthickness);
 			break;
@@ -2116,8 +2120,8 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int le
 			/* FALLTHROUGH */
 		case 6: /* Steady bar */
 			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + cy * win.ch,
+					win.hborderpx + cx * win.cw,
+					win.vborderpx + cy * win.ch,
 					cursorthickness, win.ch);
 			break;
 		case 7: /* Blinking st cursor */
@@ -2126,20 +2130,20 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int le
         }
 	} else {
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
+				win.hborderpx + cx * win.cw,
+				win.vborderpx + cy * win.ch,
 				win.cw - 1, 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
+				win.hborderpx + cx * win.cw,
+				win.vborderpx + cy * win.ch,
 				1, win.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + (cx + 1) * win.cw - 1,
-				borderpx + cy * win.ch,
+				win.hborderpx + (cx + 1) * win.cw - 1,
+				win.vborderpx + cy * win.ch,
 				1, win.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + (cy + 1) * win.ch - 1,
+				win.hborderpx + cx * win.cw,
+				win.vborderpx + (cy + 1) * win.ch - 1,
 				win.cw, 1);
 	}
 }
@@ -2814,7 +2818,7 @@ run:
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
-        xrdb_load();
+    xrdb_load();
 	signal(SIGUSR1, reload);
 
 	if(!(xw.dpy = XOpenDisplay(NULL)))
