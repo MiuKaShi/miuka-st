@@ -251,7 +251,6 @@ static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 static const Rune utfmin[UTF_SIZ + 1] = {0, 0, 0x80, 0x800, 0x10000};
 static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF,
                                          0x10FFFF};
-
 ssize_t xwrite(int fd, const char *s, size_t len) {
   size_t aux = len;
   ssize_t r;
@@ -1798,6 +1797,34 @@ void csihandle(void) {
   case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
     tcursor(CURSOR_SAVE);
     break;
+	case 't': /* title stack operations */
+		switch (csiescseq.arg[0]) {
+		case 22: /* pust current title on stack */
+			switch (csiescseq.arg[1]) {
+			case 0:
+			case 1:
+			case 2:
+				xpushtitle();
+				break;
+			default:
+				goto unknown;
+			}
+			break;
+		case 23: /* pop last title from stack */
+			switch (csiescseq.arg[1]) {
+			case 0:
+			case 1:
+			case 2:
+				xsettitle(NULL, 1);
+				break;
+			default:
+				goto unknown;
+			}
+			break;
+		default:
+			goto unknown;
+		}
+		break;
   case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
     tcursor(CURSOR_LOAD);
     break;
@@ -1850,18 +1877,18 @@ void strhandle(void) {
   case ']': /* OSC -- Operating System Command */
     switch (par) {
     case 0:
-      if (narg > 1) {
-        xsettitle(strescseq.args[1]);
-        xseticontitle(strescseq.args[1]);
-      }
-      return;
+			if (narg > 1) {
+				xsettitle(strescseq.args[1], 0);
+				xseticontitle(strescseq.args[1]);
+			}
+			return;
     case 1:
       if (narg > 1)
         xseticontitle(strescseq.args[1]);
       return;
     case 2:
       if (narg > 1)
-        xsettitle(strescseq.args[1]);
+				xsettitle(strescseq.args[1], 0);
       return;
     case 52:
       if (narg > 2) {
@@ -1910,7 +1937,7 @@ void strhandle(void) {
     }
     break;
   case 'k': /* old title set compatibility */
-    xsettitle(strescseq.args[0]);
+		xsettitle(strescseq.args[0], 0);
     return;
   case 'P': /* DCS -- Device Control String */
     term.mode |= ESC_DCS;
@@ -2308,6 +2335,7 @@ int eschandle(uchar ascii) {
     break;
   case 'c': /* RIS -- Reset to initial state */
     treset();
+		xfreetitlestack();
     resettitle();
     xloadcols();
     break;
@@ -2606,7 +2634,7 @@ void tresize(int col, int row) {
   term.c = c;
 }
 
-void resettitle(void) { xsettitle(NULL); }
+void resettitle(void) { xsettitle(NULL, 0); }
 
 void drawregion(int x1, int y1, int x2, int y2) {
   int y;

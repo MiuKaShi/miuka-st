@@ -84,6 +84,9 @@ static void zoomreset(const Arg *);
 /* config.h for applying patches and the configuration. */
 #include "config.h"
 
+/* size of title stack */
+#define TITLESTACKSIZE 8
+
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
@@ -124,6 +127,11 @@ typedef struct {
 	Draw draw;
 	Visual *vis;
 	XSetWindowAttributes attrs;
+	/* Here, we use the term *pointer* to differentiate the cursor
+	 * one sees when hovering the mouse over the terminal from, e.g.,
+	 * a green rectangle where text would be entered. */
+	Cursor vpointer, bpointer; /* visible and hidden pointers */
+	int pointerisvisible;
 	int scr;
 	int isfixed; /* is fixed geometry? */
 	int depth; /* bit depth */
@@ -241,6 +249,8 @@ static DC dc;
 static XWindow xw;
 static XSelection xsel;
 static TermWindow win;
+static int tstki; /* title stack index */
+static char *titlestack[TITLESTACKSIZE]; /* title stack */
 
 /* Font Ring Cache */
 enum {
@@ -273,8 +283,11 @@ static char *opt_io    = NULL;
 static char *opt_line  = NULL;
 static char *opt_name  = NULL;
 static char *opt_title = NULL;
+static char *opt_dir   = NULL;
 
 static int oldbutton = 3; /* button event on startup: 3 = release */
+static Cursor cursor;
+static XColor xmousefg, xmousebg;
 static int cursorblinks = 0;
 
 void
@@ -695,6 +708,7 @@ setsel(char *str, Time t)
 	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
 	if (XGetSelectionOwner(xw.dpy, XA_PRIMARY) != xw.win)
 		selclear();
+  clipcopy(NULL);
 }
 
 void
@@ -719,6 +733,13 @@ brelease(XEvent *e)
 void
 bmotion(XEvent *e)
 {
+	if (!xw.pointerisvisible) {
+		XDefineCursor(xw.dpy, xw.win, xw.vpointer);
+		xw.pointerisvisible = 1;
+		if (!IS_SET(MODE_MOUSEMANY))
+			xsetpointermotion(0);
+	}
+
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forceselmod)) {
 		mousereport(e);
 		return;
@@ -1227,10 +1248,9 @@ void
 xinit(int cols, int rows)
 {
 	XGCValues gcvalues;
-	Cursor cursor;
 	Window parent;
 	pid_t thispid = getpid();
-	XColor xmousefg, xmousebg;
+	Pixmap blankpm;
 	XWindowAttributes attr;
 	XVisualInfo vis;
 
@@ -1300,8 +1320,9 @@ xinit(int cols, int rows)
 	ximopen(xw.dpy);
 
 	/* white cursor, black outline */
-	cursor = XCreateFontCursor(xw.dpy, mouseshape);
-	XDefineCursor(xw.dpy, xw.win, cursor);
+	xw.pointerisvisible = 1;
+	xw.vpointer = XCreateFontCursor(xw.dpy, mouseshape);
+	XDefineCursor(xw.dpy, xw.win, xw.vpointer);
 
 	if (XParseColor(xw.dpy, xw.cmap, colorname[mousefg], &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
@@ -1315,7 +1336,10 @@ xinit(int cols, int rows)
 		xmousebg.blue  = 0x0000;
 	}
 
-	XRecolorCursor(xw.dpy, cursor, &xmousefg, &xmousebg);
+	XRecolorCursor(xw.dpy, xw.vpointer, &xmousefg, &xmousebg);
+	blankpm = XCreateBitmapFromData(xw.dpy, xw.win, &(char){0}, 1, 1);
+	xw.bpointer = XCreatePixmapCursor(xw.dpy, blankpm, blankpm,
+					  &xmousefg, &xmousebg, 0, 0);
 
 	xw.xembed = XInternAtom(xw.dpy, "_XEMBED", False);
 	xw.wmdeletewin = XInternAtom(xw.dpy, "WM_DELETE_WINDOW", False);
@@ -2189,17 +2213,47 @@ xseticontitle(char *p)
 }
 
 void
-xsettitle(char *p)
+xfreetitlestack(void)
 {
-	XTextProperty prop;
-	DEFAULT(p, opt_title);
+	for (int i = 0; i < LEN(titlestack); i++) {
+		free(titlestack[i]);
+		titlestack[i] = NULL;
+	}
+}
 
-        if (Xutf8TextListToTextProperty(xw.dpy, &p, 1, XUTF8StringStyle,
+void
+xsettitle(char *p, int pop)
+{
+ 	XTextProperty prop;
+ 
+	free(titlestack[tstki]);
+	if (pop) {
+		titlestack[tstki] = NULL;
+		tstki = (tstki - 1 + TITLESTACKSIZE) % TITLESTACKSIZE;
+		p = titlestack[tstki] ? titlestack[tstki] : opt_title;
+	} else if (p) {
+		titlestack[tstki] = xstrdup(p);
+	} else {
+		titlestack[tstki] = NULL;
+		p = opt_title;
+	}
+
+  if (Xutf8TextListToTextProperty(xw.dpy, &p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
-		return;
+  return;
 	XSetWMName(xw.dpy, xw.win, &prop);
 	XSetTextProperty(xw.dpy, xw.win, &prop, xw.netwmname);
 	XFree(prop.value);
+}
+
+void
+xpushtitle(void)
+{
+	int tstkin = (tstki + 1) % TITLESTACKSIZE;
+
+	free(titlestack[tstkin]);
+	titlestack[tstkin] = titlestack[tstki] ? xstrdup(titlestack[tstki]) : NULL;
+	tstki = tstkin;
 }
 
 int
@@ -2289,6 +2343,8 @@ unmap(XEvent *ev)
 void
 xsetpointermotion(int set)
 {
+	if (!set && !xw.pointerisvisible)
+		return;
 	MODBIT(xw.attrs.event_mask, set, PointerMotionMask);
 	XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask, &xw.attrs);
 }
@@ -2298,6 +2354,12 @@ xsetmode(int set, unsigned int flags)
 {
 	int mode = win.mode;
 	MODBIT(win.mode, set, flags);
+  if (flags & MODE_MOUSE) {
+          if (win.mode & MODE_MOUSE)
+                  XUndefineCursor(xw.dpy, xw.win);
+          else
+                  XDefineCursor(xw.dpy, xw.win, cursor);
+  }
 	if ((win.mode & MODE_REVERSE) != (mode & MODE_REVERSE))
 		redraw();
 }
@@ -2409,6 +2471,12 @@ kpress(XEvent *ev)
 	Rune c;
 	Status status;
 	Shortcut *bp;
+
+	if (xw.pointerisvisible) {
+		XDefineCursor(xw.dpy, xw.win, xw.bpointer);
+		xsetpointermotion(1);
+		xw.pointerisvisible = 0;
+	}
 
 	if (IS_SET(MODE_KBDLOCK))
 		return;
@@ -2762,13 +2830,13 @@ config_init(void)
 void
 usage(void)
 {
-	die("usage: %s [-aiv] [-c class] [-f font] [-g geometry]"
-	    " [-n name] [-o file]\n"
+	die("usage: %s [-aiv] [-c class] [-d path] [-f font]"
+	    " [-g geometry] [-n name] [-o file]\n"
 	    "          [-T title] [-t title] [-w windowid]"
 	    " [[-e] command [args ...]]\n"
-	    "       %s [-aiv] [-c class] [-f font] [-g geometry]"
-	    " [-n name] [-o file]\n"
-	    "          [-T title] [-t title] [-w windowid] -l line"
+	    "       %s [-aiv] [-c class] [-d path] [-f font]"
+	    " [-g geometry] [-n name] [-o file]\n"
+ 	    "          [-T title] [-t title] [-w windowid] -l line"
 	    " [stty_args ...]\n", argv0, argv0);
 }
 
@@ -2822,6 +2890,9 @@ main(int argc, char *argv[])
 	case 'v':
 		die("%s " VERSION "\n", argv0);
 		break;
+	case 'd':
+		opt_dir = EARGF(usage());
+		break;
 	default:
 		usage();
 	} ARGEND;
@@ -2849,6 +2920,7 @@ run:
 	xinit(cols, rows);
 	xsetenv();
 	selinit();
+	chdir(opt_dir);
 	run();
 
 	return 0;
