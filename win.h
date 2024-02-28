@@ -40,4 +40,8 @@ void xsetpointermotion(int);
 void xsetsel(char *);
 int xstartdraw(void);
 void xximspot(int, int);
+
+void xloadsixelcols(sixel_image_t *image);
+void xdrawsixel(ImageList *im);
+void xdelete_image(ImageList *im);
 void xclearwin(void);

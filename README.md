@@ -19,15 +19,14 @@ If you are not, the name may be different.
 | st-alpha                       | 0.8.5    | -            |
 | st-clipboard                   | 0.8.3    | -            |
 | st-csi                         | 0.8.5    | -            |
-| st-anysize                     | 20220718 | -            |
 | st-blinking_cursor             | 20211116 | -            |
 | st-bold-is-not-bright          | 20190127 | -            |
 | st-boxdraw                     | v2-0.8.5 | -            |
 | st-charoffsets                 | 20220311 | -            |
 | st-desktopentry                | 0.8.5    | -            |
 | st-swapmouse                   | 0.8.4    | -            |
+| st-sixel                       | 0.8.4    | -            |
 | st-workingdir                  | 20200317 | -            |
-| st-vertcenter                  | 20231003 | -            |
 | st-dont-cut-text               | -        | -            |
 | st-dynamic-cursor-color        | 0.9      | -            |
 | st-externalpipe                | 0.8.4    | -            |

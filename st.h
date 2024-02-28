@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
-
+#include "sixel.h"
 #include <gd.h>
 #include <glib.h>
 
@@ -36,6 +36,7 @@ enum glyph_attribute {
 	ATTR_WIDE       = 1 << 9,
 	ATTR_WDUMMY     = 1 << 10,
  	ATTR_BOXDRAW    = 1 << 11,
+	ATTR_SIXEL      = 1 << 12,
 	ATTR_LIGA       = 1 << 12,
 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 	ATTR_DIRTYUNDERLINE = 1 << 15,
@@ -81,6 +82,28 @@ typedef struct {
 } Glyph;
 
 typedef Glyph *Line;
+
+typedef struct _ImageList {
+	struct _ImageList *next, *prev;
+	unsigned char *pixels;
+	void *pixmap;
+	int w; /* width */
+	int h; /* height */
+	int tw; /* term width */
+	int th; /* term height */
+	int x;
+	int y;
+} ImageList;
+
+/* Purely graphic info */
+typedef struct {
+	int tw, th; /* tty width and height */
+	int w, h; /* window width and height */
+	int ch; /* char height */
+	int cw; /* char width  */
+	int mode; /* window state/mode flags */
+	int cursor; /* cursor style */
+} TermWindow;
 
 typedef union {
 	int i;
@@ -144,6 +167,8 @@ void boxdraw_xinit(Display *, Colormap, XftDraw *, Visual *);
 void drawboxes(int, int, int, int, XftColor *, XftColor *, const XftGlyphFontSpec *, int);
 #endif
 
+void delete_image(ImageList *);
+
 /* config.h globals */
 extern char *utmp;
 extern char *stty_args;
@@ -156,6 +181,7 @@ extern unsigned int defaultfg;
 extern unsigned int defaultbg;
 extern unsigned int defaultcs;
 extern const int boxdraw, boxdraw_bold, boxdraw_braille;
+extern TermWindow win;
 extern float alpha;
 extern MouseKey mkeys[];
 extern int ximspot_update_interval;
