@@ -253,8 +253,35 @@ static sixel_state_t sst;
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80, 0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 static const Rune utfmin[UTF_SIZ + 1] = {0, 0, 0x80, 0x800, 0x10000};
-static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF,
-                                         0x10FFFF};
+static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+
+#include <time.h>
+static int su = 0;
+struct timespec sutv;
+
+static void
+tsync_begin()
+{
+	clock_gettime(CLOCK_MONOTONIC, &sutv);
+	su = 1;
+}
+
+static void
+tsync_end()
+{
+	su = 0;
+}
+
+int
+tinsync(uint timeout)
+{
+	struct timespec now;
+	if (su && !clock_gettime(CLOCK_MONOTONIC, &now)
+	       && TIMEDIFF(now, sutv) >= timeout)
+		su = 0;
+	return su;
+}
+
 ssize_t xwrite(int fd, const char *s, size_t len) {
   size_t aux = len;
   ssize_t r;
@@ -794,6 +821,9 @@ int ttynew(const char *line, char *cmd, const char *out, char **args) {
   return cmdfd;
 }
 
+static int twrite_aborted = 0;
+int ttyread_pending() { return twrite_aborted; }
+
 size_t ttyread(void) {
   static char buf[BUFSIZ];
   static int buflen = 0;
@@ -801,17 +831,22 @@ size_t ttyread(void) {
   int ret;
 
   /* append read bytes to unprocessed bytes */
-  if ((ret = read(cmdfd, buf + buflen, LEN(buf) - buflen)) < 0)
-    die("couldn't read from shell: %s\n", strerror(errno));
-  buflen += ret;
+	ret = twrite_aborted ? 1 : read(cmdfd, buf+buflen, LEN(buf)-buflen);
 
-  written = twrite(buf, buflen, 0);
-  buflen -= written;
-  /* keep any uncomplete utf8 char for the next call */
-  if (buflen > 0)
-    memmove(buf, buf + written, buflen);
-
-  return ret;
+	switch (ret) {
+	case 0:
+		exit(0);
+	case -1:
+		die("couldn't read from shell: %s\n", strerror(errno));
+	default:
+		buflen += twrite_aborted ? 0 : ret;
+		written = twrite(buf, buflen, 0);
+		buflen -= written;
+		/* keep any incomplete UTF-8 byte sequence for the next call */
+		if (buflen > 0)
+			memmove(buf, buf + written, buflen);
+		return ret;
+	}
 }
 
 void ttywrite(const char *s, size_t n, int may_echo) {
@@ -950,7 +985,10 @@ void tsetdirtattr(int attr) {
   }
 }
 
-void tfulldirt(void) { tsetdirt(0, term.row - 1); }
+void tfulldirt(void) {
+	tsync_end();
+	tsetdirt(0, term.row - 1);
+}
 
 void tcursor(int mode) {
   static TCursor c[2];
@@ -2036,6 +2074,12 @@ void strhandle(void) {
 				tnewline(1);
 			}
 		}
+
+		/* https://gitlab.com/gnachman/iterm2/-/wikis/synchronized-updates-spec */
+		if (strstr(strescseq.buf, "=1s") == strescseq.buf)
+			tsync_begin();  /* BSU */
+		else if (strstr(strescseq.buf, "=2s") == strescseq.buf)
+			tsync_end();  /* ESU */
 		return;
   case '_': /* APC -- Application Program Command */
   case '^': /* PM -- Privacy Message */
@@ -2616,6 +2660,9 @@ int twrite(const char *buf, int buflen, int show_ctrl) {
   Rune u;
   int n;
 
+	int su0 = su;
+	twrite_aborted = 0;
+
   for (n = 0; n < buflen; n += charsize) {
     if (IS_SET(MODE_UTF8) && !IS_SET(MODE_SIXEL)) {
       /* process a complete utf8 char */
@@ -2626,6 +2673,10 @@ int twrite(const char *buf, int buflen, int show_ctrl) {
       u = buf[n] & 0xFF;
       charsize = 1;
     }
+		if (su0 && !su) {
+			twrite_aborted = 1;
+			break;  // ESU - allow rendering before a new BSU
+		}
     if (show_ctrl && ISCONTROL(u)) {
       if (u & 0x80) {
         u &= 0x7f;
