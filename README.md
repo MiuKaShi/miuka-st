@@ -22,6 +22,7 @@ If you are not, the name may be different.
 | st-blinking_cursor             | 20211116 | -            |
 | st-bold-is-not-bright          | 20190127 | -            |
 | st-appsync                     | 20200618 | -            |
+| st-anysize                     | 20220718 | -            |
 | st-boxdraw                     | v2-0.8.5 | -            |
 | st-charoffsets                 | 20220311 | -            |
 | st-desktopentry                | 0.8.5    | -            |

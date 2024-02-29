@@ -99,6 +99,7 @@ typedef struct _ImageList {
 typedef struct {
 	int tw, th; /* tty width and height */
 	int w, h; /* window width and height */
+	int hborderpx, vborderpx;
 	int ch; /* char height */
 	int cw; /* char width  */
 	int mode; /* window state/mode flags */
