@@ -28,6 +28,7 @@ If you are not, the name may be different.
 | st-charoffsets                 | 20220311 | -            |
 | st-desktopentry                | 0.8.5    | -            |
 | st-swapmouse                   | 0.8.4    | -            |
+| st-hidecursor                  | 0.8.3    | -            |
 | st-sixel                       | 0.8.4    | -            |
 | st-workingdir                  | 20200317 | -            |
 | st-dont-cut-text               | -        | -            |
