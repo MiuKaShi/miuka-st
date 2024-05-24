@@ -1,0 +1,10 @@
+st
+st.o
+x.o
+boxdraw.o
+hb.o
+sixel.o
+st-0.8.5.tar.gz
+*.o
+*.orig
+*.rej
