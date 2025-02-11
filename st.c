@@ -49,7 +49,7 @@
 #define TLINE(y)                                                               \
   ((y) < term.scr                                                              \
        ? term.hist[((y) + term.histi - term.scr + HISTSIZE + 1) % HISTSIZE]    \
-       : term.line[(y)-term.scr])
+       : term.line[(y) - term.scr])
 
 #define TLINE_HIST(y)                                                          \
   ((y) <= HISTSIZE - term.row + 2 ? term.hist[(y)]                             \
@@ -100,8 +100,8 @@ enum escape_state {
 
 typedef struct {
   Glyph attr; /* current char attributes */
-	int x;
-	int y;
+  int x;
+  int y;
   char state;
 } TCursor;
 
@@ -146,8 +146,8 @@ typedef struct {
   int icharset;        /* selected charset for sequence */
   int *tabs;
   struct timespec last_ximspot_update;
-	ImageList *im;     /* sixel images */
-	ImageList *im_alt; /* sixel images for alternate screen */
+  ImageList *im;     /* sixel images */
+  ImageList *im_alt; /* sixel images for alternate screen */
 } Term;
 
 /* CSI Escape sequence structs */
@@ -253,33 +253,26 @@ static sixel_state_t sst;
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80, 0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 static const Rune utfmin[UTF_SIZ + 1] = {0, 0, 0x80, 0x800, 0x10000};
-static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF,
+                                         0x10FFFF};
 
 #include <time.h>
 static int su = 0;
 struct timespec sutv;
 
-static void
-tsync_begin()
-{
-	clock_gettime(CLOCK_MONOTONIC, &sutv);
-	su = 1;
+static void tsync_begin() {
+  clock_gettime(CLOCK_MONOTONIC, &sutv);
+  su = 1;
 }
 
-static void
-tsync_end()
-{
-	su = 0;
-}
+static void tsync_end() { su = 0; }
 
-int
-tinsync(uint timeout)
-{
-	struct timespec now;
-	if (su && !clock_gettime(CLOCK_MONOTONIC, &now)
-	       && TIMEDIFF(now, sutv) >= timeout)
-		su = 0;
-	return su;
+int tinsync(uint timeout) {
+  struct timespec now;
+  if (su && !clock_gettime(CLOCK_MONOTONIC, &now) &&
+      TIMEDIFF(now, sutv) >= timeout)
+    su = 0;
+  return su;
 }
 
 ssize_t xwrite(int fd, const char *s, size_t len) {
@@ -831,22 +824,22 @@ size_t ttyread(void) {
   int ret;
 
   /* append read bytes to unprocessed bytes */
-	ret = twrite_aborted ? 1 : read(cmdfd, buf+buflen, LEN(buf)-buflen);
+  ret = twrite_aborted ? 1 : read(cmdfd, buf + buflen, LEN(buf) - buflen);
 
-	switch (ret) {
-	case 0:
-		exit(0);
-	case -1:
-		die("couldn't read from shell: %s\n", strerror(errno));
-	default:
-		buflen += twrite_aborted ? 0 : ret;
-		written = twrite(buf, buflen, 0);
-		buflen -= written;
-		/* keep any incomplete UTF-8 byte sequence for the next call */
-		if (buflen > 0)
-			memmove(buf, buf + written, buflen);
-		return ret;
-	}
+  switch (ret) {
+  case 0:
+    exit(0);
+  case -1:
+    die("couldn't read from shell: %s\n", strerror(errno));
+  default:
+    buflen += twrite_aborted ? 0 : ret;
+    written = twrite(buf, buflen, 0);
+    buflen -= written;
+    /* keep any incomplete UTF-8 byte sequence for the next call */
+    if (buflen > 0)
+      memmove(buf, buf + written, buflen);
+    return ret;
+  }
 }
 
 void ttywrite(const char *s, size_t n, int may_echo) {
@@ -986,8 +979,8 @@ void tsetdirtattr(int attr) {
 }
 
 void tfulldirt(void) {
-	tsync_end();
-	tsetdirt(0, term.row - 1);
+  tsync_end();
+  tsetdirt(0, term.row - 1);
 }
 
 void tcursor(int mode) {
@@ -1002,21 +995,20 @@ void tcursor(int mode) {
   }
 }
 
-void
-scroll_images(int n) {
-	ImageList *im;
-	ImageList *im_next;
+void scroll_images(int n) {
+  ImageList *im;
+  ImageList *im_next;
 
-	for (im = term.im; im; im = im_next) {
-		im_next = im->next;
-		im->y += n;
+  for (im = term.im; im; im = im_next) {
+    im_next = im->next;
+    im->y += n;
 
-		/* check if the current sixel has exceeded the maximum
-		 * draw distance, and should therefore be deleted */
-		if (abs(im->y) > HISTSIZE) {
-			xdelete_image(im);
-		}
-	}
+    /* check if the current sixel has exceeded the maximum
+     * draw distance, and should therefore be deleted */
+    if (abs(im->y) > HISTSIZE) {
+      xdelete_image(im);
+    }
+  }
 }
 
 void treset(void) {
@@ -1055,12 +1047,12 @@ int tisaltscr(void) { return IS_SET(MODE_ALTSCREEN); }
 
 void tswapscreen(void) {
   Line *tmp = term.line;
-	ImageList *tmp_im = term.im;
+  ImageList *tmp_im = term.im;
 
   term.line = term.alt;
   term.alt = tmp;
-	term.im = term.im_alt;
-	term.im_alt = tmp_im;
+  term.im = term.im_alt;
+  term.im_alt = tmp_im;
   term.mode ^= MODE_ALTSCREEN;
   tfulldirt();
 }
@@ -1097,7 +1089,7 @@ void kscrolldown(const Arg *a) {
     selscroll(0, -n);
     tfulldirt();
   }
-	scroll_images(-n);
+  scroll_images(-n);
 }
 
 void kscrollup(const Arg *a) {
@@ -1111,7 +1103,7 @@ void kscrollup(const Arg *a) {
     selscroll(0, n);
     tfulldirt();
   }
-	scroll_images(n);
+  scroll_images(n);
 }
 
 void tscrolldown(int orig, int n, int copyhist) {
@@ -1136,10 +1128,10 @@ void tscrolldown(int orig, int n, int copyhist) {
     term.line[i - n] = temp;
   }
 
-	if (term.scr == 0){
-		selscroll(orig, n);
-		scroll_images(n);
-	}
+  if (term.scr == 0) {
+    selscroll(orig, n);
+    scroll_images(n);
+  }
 }
 
 void tscrollup(int orig, int n, int copyhist) {
@@ -1167,10 +1159,10 @@ void tscrollup(int orig, int n, int copyhist) {
     term.line[i + n] = temp;
   }
 
-	if (term.scr == 0){
-		scroll_images(-1 * n);
-		selscroll(orig, -n);
-	}
+  if (term.scr == 0) {
+    scroll_images(-1 * n);
+    selscroll(orig, -n);
+  }
 }
 
 void selscroll(int orig, int n) {
@@ -1322,8 +1314,8 @@ void tsetchar(Rune u, const Glyph *attr, int x, int y) {
 void tclearregion(int x1, int y1, int x2, int y2) {
   int x, y, temp;
   Glyph *gp;
-	ImageList *im;
-	ImageList *im_next;
+  ImageList *im;
+  ImageList *im_next;
 
   if (x1 > x2)
     temp = x1, x1 = x2, x2 = temp;
@@ -1348,15 +1340,15 @@ void tclearregion(int x1, int y1, int x2, int y2) {
     }
   }
 
-	for (im=term.im; im; im = im_next) {
-		im_next = im->next;
-		if((y1==0 && term.row==y2+1&&
-			x1==0 && term.col==x2+1)||/* clear whole screen */
-			(y1<=im->y&&y2>=im->y+im->th &&
-			x1<=im->x&&x2>=im->x+im->tw)){
-			xdelete_image(im);
-		}
-	}
+  for (im = term.im; im; im = im_next) {
+    im_next = im->next;
+    if ((y1 == 0 && term.row == y2 + 1 && x1 == 0 &&
+         term.col == x2 + 1) || /* clear whole screen */
+        (y1 <= im->y && y2 >= im->y + im->th && x1 <= im->x &&
+         x2 >= im->x + im->tw)) {
+      xdelete_image(im);
+    }
+  }
 }
 
 void tdeletechar(int n) {
@@ -1694,21 +1686,19 @@ void tsetmode(int priv, int set, const int *args, int narg) {
   }
 }
 
-void
-dcshandle(void)
-{
-	switch (csiescseq.mode[0]) {
-	default:
-		fprintf(stderr, "erresc: unknown dcs ");
-		csidump();
-		/* die(""); */
-		break;
-	case 'q': /* DECSIXEL */
-		if (sixel_parser_init(&sst) != 0)
-			perror("sixel_parser_init() failed");
-		term.mode |= MODE_SIXEL;
-		break;
-	}
+void dcshandle(void) {
+  switch (csiescseq.mode[0]) {
+  default:
+    fprintf(stderr, "erresc: unknown dcs ");
+    csidump();
+    /* die(""); */
+    break;
+  case 'q': /* DECSIXEL */
+    if (sixel_parser_init(&sst) != 0)
+      perror("sixel_parser_init() failed");
+    term.mode |= MODE_SIXEL;
+    break;
+  }
 }
 
 void csihandle(void) {
@@ -1896,34 +1886,34 @@ void csihandle(void) {
   case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
     tcursor(CURSOR_SAVE);
     break;
-	case 't': /* title stack operations */
-		switch (csiescseq.arg[0]) {
-		case 22: /* pust current title on stack */
-			switch (csiescseq.arg[1]) {
-			case 0:
-			case 1:
-			case 2:
-				xpushtitle();
-				break;
-			default:
-				goto unknown;
-			}
-			break;
-		case 23: /* pop last title from stack */
-			switch (csiescseq.arg[1]) {
-			case 0:
-			case 1:
-			case 2:
-				xsettitle(NULL, 1);
-				break;
-			default:
-				goto unknown;
-			}
-			break;
-		default:
-			goto unknown;
-		}
-		break;
+  case 't': /* title stack operations */
+    switch (csiescseq.arg[0]) {
+    case 22: /* pust current title on stack */
+      switch (csiescseq.arg[1]) {
+      case 0:
+      case 1:
+      case 2:
+        xpushtitle();
+        break;
+      default:
+        goto unknown;
+      }
+      break;
+    case 23: /* pop last title from stack */
+      switch (csiescseq.arg[1]) {
+      case 0:
+      case 1:
+      case 2:
+        xsettitle(NULL, 1);
+        break;
+      default:
+        goto unknown;
+      }
+      break;
+    default:
+      goto unknown;
+    }
+    break;
   case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
     tcursor(CURSOR_LOAD);
     break;
@@ -1967,8 +1957,8 @@ void csireset(void) { memset(&csiescseq, 0, sizeof(csiescseq)); }
 void strhandle(void) {
   char *p = NULL, *dec;
   int j, narg, par;
-	ImageList *new_im;
-	int i;
+  ImageList *new_im;
+  int i;
 
   term.esc &= ~(ESC_STR_END | ESC_STR);
   strparse();
@@ -1978,18 +1968,18 @@ void strhandle(void) {
   case ']': /* OSC -- Operating System Command */
     switch (par) {
     case 0:
-			if (narg > 1) {
-				xsettitle(strescseq.args[1], 0);
-				xseticontitle(strescseq.args[1]);
-			}
-			return;
+      if (narg > 1) {
+        xsettitle(strescseq.args[1], 0);
+        xseticontitle(strescseq.args[1]);
+      }
+      return;
     case 1:
       if (narg > 1)
         xseticontitle(strescseq.args[1]);
       return;
     case 2:
       if (narg > 1)
-				xsettitle(strescseq.args[1], 0);
+        xsettitle(strescseq.args[1], 0);
       return;
     case 52:
       if (narg > 2) {
@@ -2038,49 +2028,50 @@ void strhandle(void) {
     }
     break;
   case 'k': /* old title set compatibility */
-		xsettitle(strescseq.args[0], 0);
+    xsettitle(strescseq.args[0], 0);
     return;
   case 'P': /* DCS -- Device Control String */
-		if (IS_SET(MODE_SIXEL)) {
-			term.mode &= ~MODE_SIXEL;
-			new_im = malloc(sizeof(ImageList));
-			memset(new_im, 0, sizeof(ImageList));
-			new_im->x = term.c.x;
-			new_im->y = term.c.y;
-			new_im->pixels = sixel_parser_finalize(&sst);
-			new_im->w = sst.im.w;
-			new_im->h = sst.im.h;
-			new_im->tw = sst.im.tw;
-			new_im->th = sst.im.th;
-			if (new_im->pixels==0) {
-				perror("sixel_parser_finalize() failed");
-				sixel_parser_deinit(&sst);
-				return;
-			}
-			sixel_parser_deinit(&sst);
-			tclearregion(term.c.x, term.c.y, term.c.x+sst.im.tw, term.c.y+sst.im.th);
-			if (term.im) {
-				ImageList *im;
-				for (im = term.im; im->next;)
-					im = im->next;
-				im->next = new_im;
-				new_im->prev = im;
-			} else {
-				term.im = new_im;
-			}
-			for (i = 0; i < sst.im.th; ++i) {
-				for (int x = term.c.x; x < term.c.x+sst.im.tw; x++)
-					term.line[term.c.y][x].mode |= ATTR_SIXEL;
-				tnewline(1);
-			}
-		}
+    if (IS_SET(MODE_SIXEL)) {
+      term.mode &= ~MODE_SIXEL;
+      new_im = malloc(sizeof(ImageList));
+      memset(new_im, 0, sizeof(ImageList));
+      new_im->x = term.c.x;
+      new_im->y = term.c.y;
+      new_im->pixels = sixel_parser_finalize(&sst);
+      new_im->w = sst.im.w;
+      new_im->h = sst.im.h;
+      new_im->tw = sst.im.tw;
+      new_im->th = sst.im.th;
+      if (new_im->pixels == 0) {
+        perror("sixel_parser_finalize() failed");
+        sixel_parser_deinit(&sst);
+        return;
+      }
+      sixel_parser_deinit(&sst);
+      tclearregion(term.c.x, term.c.y, term.c.x + sst.im.tw,
+                   term.c.y + sst.im.th);
+      if (term.im) {
+        ImageList *im;
+        for (im = term.im; im->next;)
+          im = im->next;
+        im->next = new_im;
+        new_im->prev = im;
+      } else {
+        term.im = new_im;
+      }
+      for (i = 0; i < sst.im.th; ++i) {
+        for (int x = term.c.x; x < term.c.x + sst.im.tw; x++)
+          term.line[term.c.y][x].mode |= ATTR_SIXEL;
+        tnewline(1);
+      }
+    }
 
-		/* https://gitlab.com/gnachman/iterm2/-/wikis/synchronized-updates-spec */
-		if (strstr(strescseq.buf, "=1s") == strescseq.buf)
-			tsync_begin();  /* BSU */
-		else if (strstr(strescseq.buf, "=2s") == strescseq.buf)
-			tsync_end();  /* ESU */
-		return;
+    /* https://gitlab.com/gnachman/iterm2/-/wikis/synchronized-updates-spec */
+    if (strstr(strescseq.buf, "=1s") == strescseq.buf)
+      tsync_begin(); /* BSU */
+    else if (strstr(strescseq.buf, "=2s") == strescseq.buf)
+      tsync_end(); /* ESU */
+    return;
   case '_': /* APC -- Application Program Command */
   case '^': /* PM -- Privacy Message */
     return;
@@ -2150,56 +2141,55 @@ void tprinter(char *s, size_t len) {
   }
 }
 
-void externalpipe(const Arg *arg)
-{
-	int to[2];
-	char buf[UTF_SIZ];
-	void (*oldsigpipe)(int);
-	Glyph *bp, *end;
-	int lastpos, n, newline;
+void externalpipe(const Arg *arg) {
+  int to[2];
+  char buf[UTF_SIZ];
+  void (*oldsigpipe)(int);
+  Glyph *bp, *end;
+  int lastpos, n, newline;
 
-	if (pipe(to) == -1)
-		return;
+  if (pipe(to) == -1)
+    return;
 
-	switch (fork()) {
-	case -1:
-		close(to[0]);
-		close(to[1]);
-		return;
-	case 0:
-		dup2(to[0], STDIN_FILENO);
-		close(to[0]);
-		close(to[1]);
-		execvp(((char **)arg->v)[0], (char **)arg->v);
-		fprintf(stderr, "st: execvp %s\n", ((char **)arg->v)[0]);
-		perror("failed");
-		exit(0);
-	}
+  switch (fork()) {
+  case -1:
+    close(to[0]);
+    close(to[1]);
+    return;
+  case 0:
+    dup2(to[0], STDIN_FILENO);
+    close(to[0]);
+    close(to[1]);
+    execvp(((char **)arg->v)[0], (char **)arg->v);
+    fprintf(stderr, "st: execvp %s\n", ((char **)arg->v)[0]);
+    perror("failed");
+    exit(0);
+  }
 
-	close(to[0]);
-	/* ignore sigpipe for now, in case child exists early */
-	oldsigpipe = signal(SIGPIPE, SIG_IGN);
-	newline = 0;
-	for (n = 0; n < term.row; n++) {
-		bp = term.line[n];
-		lastpos = MIN(tlinelen(n) + 1, term.col) - 1;
-		if (lastpos < 0)
-			break;
-		end = &bp[lastpos + 1];
-		for (; bp < end; ++bp)
-			if (xwrite(to[1], buf, utf8encode(bp->u, buf)) < 0)
-				break;
-		if ((newline = term.line[n][lastpos].mode & ATTR_WRAP))
-			continue;
-		if (xwrite(to[1], "\n", 1) < 0)
-			break;
-		newline = 0;
-	}
-	if (newline)
-		(void)xwrite(to[1], "\n", 1);
-	close(to[1]);
-	/* restore */
-	signal(SIGPIPE, oldsigpipe);
+  close(to[0]);
+  /* ignore sigpipe for now, in case child exists early */
+  oldsigpipe = signal(SIGPIPE, SIG_IGN);
+  newline = 0;
+  for (n = 0; n < term.row; n++) {
+    bp = term.line[n];
+    lastpos = MIN(tlinelen(n) + 1, term.col) - 1;
+    if (lastpos < 0)
+      break;
+    end = &bp[lastpos + 1];
+    for (; bp < end; ++bp)
+      if (xwrite(to[1], buf, utf8encode(bp->u, buf)) < 0)
+        break;
+    if ((newline = term.line[n][lastpos].mode & ATTR_WRAP))
+      continue;
+    if (xwrite(to[1], "\n", 1) < 0)
+      break;
+    newline = 0;
+  }
+  if (newline)
+    (void)xwrite(to[1], "\n", 1);
+  close(to[1]);
+  /* restore */
+  signal(SIGPIPE, oldsigpipe);
 }
 
 void iso14755(const Arg *arg) {
@@ -2324,12 +2314,12 @@ void tstrsequence(uchar c) {
 }
 
 void tcontrolcode(uchar ascii) {
-	switch (ascii) {
+  switch (ascii) {
   case '\t': /* HT */
     tputtab(1);
     return;
   case '\b': /* BS */
-		tmoveto(term.c.x-1, term.c.y);
+    tmoveto(term.c.x - 1, term.c.y);
     return;
   case '\r': /* CR */
     tmoveto(0, term.c.y);
@@ -2433,7 +2423,7 @@ int eschandle(uchar ascii) {
     term.esc |= ESC_UTF8;
     return 0;
   case 'P': /* DCS -- Device Control String */
-		term.esc |= ESC_DCS;
+    term.esc |= ESC_DCS;
   case '_': /* APC -- Application Program Command */
   case '^': /* PM -- Privacy Message */
   case ']': /* OSC -- Operating System Command */
@@ -2476,7 +2466,7 @@ int eschandle(uchar ascii) {
     break;
   case 'c': /* RIS -- Reset to initial state */
     treset();
-		xfreetitlestack();
+    xfreetitlestack();
     resettitle();
     xloadcols();
     break;
@@ -2533,18 +2523,18 @@ void tputc(Rune u) {
    */
   if (term.esc & ESC_STR) {
     if (u == '\a' || u == 030 || u == 032 || u == 033 || ISCONTROLC1(u)) {
-			term.esc &= ~(ESC_START|ESC_STR|ESC_DCS);
- 			term.esc |= ESC_STR_END;
- 			goto check_control_code;
- 		}
+      term.esc &= ~(ESC_START | ESC_STR | ESC_DCS);
+      term.esc |= ESC_STR_END;
+      goto check_control_code;
+    }
 
-		if (IS_SET(MODE_SIXEL)) {
-			if (sixel_parser_parse(&sst, (unsigned char *)&u, term.c.x) != 0)
-				perror("sixel_parser_parse() failed");
-			return;
-		}
-		if (term.esc & ESC_DCS)
-			goto check_control_code;
+    if (IS_SET(MODE_SIXEL)) {
+      if (sixel_parser_parse(&sst, (unsigned char *)&u, term.c.x) != 0)
+        perror("sixel_parser_parse() failed");
+      return;
+    }
+    if (term.esc & ESC_DCS)
+      goto check_control_code;
 
     if (strescseq.len + len >= sizeof(strescseq.buf) - 1) {
       /*
@@ -2590,15 +2580,14 @@ check_control_code:
         csihandle();
       }
       return;
-		} else if (term.esc & ESC_DCS) {
-			csiescseq.buf[csiescseq.len++] = u;
-			if (BETWEEN(u, 0x40, 0x7E)
-					|| csiescseq.len >= \
-					sizeof(csiescseq.buf)-1) {
-				csiparse();
-				dcshandle();
-			}
-			return;
+    } else if (term.esc & ESC_DCS) {
+      csiescseq.buf[csiescseq.len++] = u;
+      if (BETWEEN(u, 0x40, 0x7E) ||
+          csiescseq.len >= sizeof(csiescseq.buf) - 1) {
+        csiparse();
+        dcshandle();
+      }
+      return;
     } else if (term.esc & ESC_UTF8) {
       tdefutf8(u);
     } else if (term.esc & ESC_ALTCHARSET) {
@@ -2660,8 +2649,8 @@ int twrite(const char *buf, int buflen, int show_ctrl) {
   Rune u;
   int n;
 
-	int su0 = su;
-	twrite_aborted = 0;
+  int su0 = su;
+  twrite_aborted = 0;
 
   for (n = 0; n < buflen; n += charsize) {
     if (IS_SET(MODE_UTF8) && !IS_SET(MODE_SIXEL)) {
@@ -2673,10 +2662,10 @@ int twrite(const char *buf, int buflen, int show_ctrl) {
       u = buf[n] & 0xFF;
       charsize = 1;
     }
-		if (su0 && !su) {
-			twrite_aborted = 1;
-			break;  // ESU - allow rendering before a new BSU
-		}
+    if (su0 && !su) {
+      twrite_aborted = 1;
+      break; // ESU - allow rendering before a new BSU
+    }
     if (show_ctrl && ISCONTROL(u)) {
       if (u & 0x80) {
         u &= 0x7f;
@@ -2819,7 +2808,7 @@ void draw(void) {
     xdrawcursor(cx, term.c.y, term.line[term.c.y][cx], term.ocx, term.ocy,
                 term.line[term.ocy][term.ocx], term.line[term.ocy], term.col);
   term.ocx = cx, term.ocy = term.c.y;
-	xdrawsixel(term.im);
+  xdrawsixel(term.im);
   xfinishdraw();
 
   struct timespec now;
@@ -2836,20 +2825,18 @@ void redraw(void) {
   draw();
 }
 
-void
-delete_image(ImageList *im)
-{
-	if (im->prev) {
-		im->prev->next = im->next;
-	} else {
-		term.im = im->next;
-	}
+void delete_image(ImageList *im) {
+  if (im->prev) {
+    im->prev->next = im->next;
+  } else {
+    term.im = im->next;
+  }
 
-	if (im->next) {
-		im->next->prev = im->prev;
-	}
+  if (im->next) {
+    im->next->prev = im->prev;
+  }
 
-	if(im->pixels)
-		free(im->pixels);
-	free(im);
+  if (im->pixels)
+    free(im->pixels);
+  free(im);
 }
