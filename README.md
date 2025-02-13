@@ -39,7 +39,6 @@ If you are not, the name may be different.
 | st-scrollback                  | 0.8.5    | -            |
 | st-undercurl                   | 0.8.4    | -            |
 | st-vertcenter                  | 20231003 | -            |
-| st-visualbell                  | 0.8.4    | -            |
 | st-workingdir                  | 20200317 | -            |
 | st-xresources                  | 20200604 | -            |
 | st-xresources-signal-reloading | 20220407 | -            |
