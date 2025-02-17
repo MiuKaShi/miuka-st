@@ -120,19 +120,36 @@ char *termname = "st-256color";
 unsigned int tabspaces = 8;
 
 /* bg opacity */
-float alpha = 1.0;
+float alpha = 0.8;
+float alphaOffset = 0.0;
+float alphaUnfocus;
 
 /* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
-    "#282828", /* hard contrast: #1d2021 / soft contrast: #32302f */
-    "#cc241d", "#98971a", "#d79921", "#458588", "#b16286", "#689d6a", "#a89984",
-    "#928374", "#fb4934", "#b8bb26", "#fabd2f", "#83a598", "#d3869b", "#8ec07c",
-    "#ebdbb2", [255] = 0,
-    /* more colors can be added after 255 to use with DefaultXX */
-    "#add8e6", /* 256 -> cursor */
-    "#555555", /* 257 -> rev cursor*/
-    "#282828", /* 258 -> bg */
-    "#ffffff", /* 259 -> fg */
+      /* 8 normal colors */
+      [0] = "#282828", /* hard contrast: #1d2021 / soft contrast: #32302f */
+      [1] = "#cc241d", /* red     */
+      [2] = "#98971a", /* green   */
+      [3] = "#d79921", /* yellow  */
+      [4] = "#458588", /* blue    */
+      [5] = "#b16286", /* magenta */
+      [6] = "#689d6a", /* cyan    */
+      [7] = "#a89984", /* white   */
+      /* 8 bright colors */
+      [8]  = "#928374", /* black   */
+      [9]  = "#fb4934", /* red     */
+      [10] = "#b8bb26", /* green   */
+      [11] = "#fabd2f", /* yellow  */
+      [12] = "#83a598", /* blue    */
+      [13] = "#d3869b", /* magenta */
+      [14] = "#8ec07c", /* cyan    */
+      [15] = "#ebdbb2", /* white   */
+      [255] = 0,
+	  /* more colors can be added after 255 to use with DefaultXX */
+      [256] = "#add8e6", /* cursor */
+      [257] = "#555555", /* rev cursor */
+      [258] = "#282828", /* bg */
+      [259] = "#ebdbb2", /* fg */
 };
 
 /*
@@ -184,36 +201,36 @@ static unsigned int defaultattr = 11;
  * Xresources preferences to load at startup
  */
 ResourcePref resources[] = {
-    {"font", STRING, &font},
-    {"fontalt0", STRING, &font2[0]},
-    {"color0", STRING, &colorname[0]},
-    {"color1", STRING, &colorname[1]},
-    {"color2", STRING, &colorname[2]},
-    {"color3", STRING, &colorname[3]},
-    {"color4", STRING, &colorname[4]},
-    {"color5", STRING, &colorname[5]},
-    {"color6", STRING, &colorname[6]},
-    {"color7", STRING, &colorname[7]},
-    {"color8", STRING, &colorname[8]},
-    {"color9", STRING, &colorname[9]},
-    {"color10", STRING, &colorname[10]},
-    {"color11", STRING, &colorname[11]},
-    {"color12", STRING, &colorname[12]},
-    {"color13", STRING, &colorname[13]},
-    {"color14", STRING, &colorname[14]},
-    {"color15", STRING, &colorname[15]},
-    {"background", STRING, &colorname[258]},
-    {"foreground", STRING, &colorname[259]},
-    {"cursorColor", STRING, &colorname[256]},
-    {"termname", STRING, &termname},
-    {"shell", STRING, &shell},
-    {"blinktimeout", INTEGER, &blinktimeout},
-    {"bellvolume", INTEGER, &bellvolume},
-    {"tabspaces", INTEGER, &tabspaces},
-    {"borderpx", INTEGER, &borderpx},
-    {"cwscale", FLOAT, &cwscale},
-    {"chscale", FLOAT, &chscale},
-    {"alpha", FLOAT, &alpha},
+    {"font",         STRING,    &font},
+    {"fontalt0",     STRING,    &font2[0]},
+    {"color0",       STRING,    &colorname[0]},
+    {"color1",       STRING,    &colorname[1]},
+    {"color2",       STRING,    &colorname[2]},
+    {"color3",       STRING,    &colorname[3]},
+    {"color4",       STRING,    &colorname[4]},
+    {"color5",       STRING,    &colorname[5]},
+    {"color6",       STRING,    &colorname[6]},
+    {"color7",       STRING,    &colorname[7]},
+    {"color8",       STRING,    &colorname[8]},
+    {"color9",       STRING,    &colorname[9]},
+    {"color10",      STRING,    &colorname[10]},
+    {"color11",      STRING,    &colorname[11]},
+    {"color12",      STRING,    &colorname[12]},
+    {"color13",      STRING,    &colorname[13]},
+    {"color14",      STRING,    &colorname[14]},
+    {"color15",      STRING,    &colorname[15]},
+    {"background",   STRING,    &colorname[258]},
+    {"foreground",   STRING,    &colorname[259]},
+    {"cursorColor",  STRING,    &colorname[256]},
+    {"termname",     STRING,    &termname},
+    {"shell",        STRING,    &shell},
+    {"blinktimeout", INTEGER,   &blinktimeout},
+    {"bellvolume",   INTEGER,   &bellvolume},
+    {"tabspaces",    INTEGER,   &tabspaces},
+    {"borderpx",     INTEGER,   &borderpx},
+    {"cwscale",      FLOAT,     &cwscale},
+    {"chscale",      FLOAT,     &chscale},
+    {"alpha",        FLOAT,     &alpha},
     {"ximspot_update_interval", INTEGER, &ximspot_update_interval},
 };
 
